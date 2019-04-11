@@ -1,0 +1,83 @@
+#################################################
+# Part B - rsum.ys
+# 
+# Author:		Cheng-Wei Lin
+# Student ID:	716030220009
+#################################################
+/* $begin code-yso */
+/* $begin code-ysa */
+# Execution begins at address 0 
+	.pos 0 
+init:	
+	irmovl Stack, %esp  	# Set up stack pointer  
+	irmovl Stack, %ebp  	# Set up base pointer   
+	call Main		# Execute main program
+	halt			# Terminate program 
+
+# Datas of 3 lists
+# 
+# List structure:
+#
+# struct ELE {
+# 	int val;
+# 	struct ELE *next;
+# }; 
+	.align 4 	
+ele1:
+	.long 0x00a
+	.long ele2
+ele2:
+	.long 0x0b0
+	.long ele3
+ele3:
+	.long 0xc00
+	.long 0
+sum:
+	.long 0
+
+Main:
+	pushl	%ebp 
+	rrmovl	%esp,%ebp
+	irmovl	ele1,%eax	
+	pushl	%eax			# Push ele1
+	call	rsum_list		# rsum_list(ele1)
+	irmovl	sum,%ecx
+	rmmovl	%eax,(%ecx)		# write to sum
+	rrmovl	%ebp,%esp
+	popl	%ebp
+	ret 
+
+/* $begin rsum-ys 0 */
+	# int rsum_list(struct ELE list_prt *ls)
+rsum_list:
+	pushl	%ebp
+	rrmovl	%esp,%ebp
+	mrmovl	8(%ebp),%ecx	# ecx = ls
+	andl	%ecx,%ecx		
+	jne		add_sum			# If ls != 0, keep adding sum.
+	irmovl	$0,%eax			# eax is the return value
+	rrmovl	%ebp,%esp
+	popl	%ebp
+	ret						# if ls == 0, return 0.
+add_sum:
+	mrmovl	(%ecx),%edx		# edx = val = ls->val
+	irmovl	$4,%ebx
+	addl	%ebx,%ecx		# ls->next
+	mrmovl	(%ecx),%ebx
+	pushl	%edx
+	rrmovl	%ebx,%ecx		# ls = ls->next
+	pushl	%ecx
+	call	rsum_list		# rsum_list(ls->next)
+	popl	%ecx
+	popl	%edx
+	rrmovl	%ebp,%esp
+	addl	%edx,%eax		# val + rest
+	popl	%ebp
+	ret
+/* $end rsum-ys 0 */
+
+# The stack starts here and grows to lower addresses
+	.pos 0x200		
+Stack:	 
+/* $end code-ysa */
+/* $end code-yso */
