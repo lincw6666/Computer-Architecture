@@ -46,7 +46,7 @@ Main:
 	ret 
 
 /* $begin sum-ys 0 */
-	# int sum_list(struct ELE *list_prt ls)
+	# int sum_list(struct ELE list_prt *ls)
 sum_list:
 	pushl %ebp
 	rrmovl %esp,%ebp
@@ -55,12 +55,12 @@ sum_list:
 	andl   %ecx,%ecx		# Set condition codes
 	je     End
 Loop:	
-	mrmovl (%ecx),%edx		# get ls->val
-	addl %edx,%eax          # add to val
+	mrmovl (%ecx),%ebx		# get ls->val
+	addl %ebx,%eax          # add to val
 	irmovl $4,%ebx
 	addl %ebx,%ecx          # ls->next
-	mrmovl (%ecx),%esi
-	rrmovl %esi,%ecx		# ls point to next element
+	mrmovl (%ecx),%ebx
+	rrmovl %ebx,%ecx		# ls point to next element
 	andl %ecx,%ecx			# ls == 0
 	jne    Loop             # Stop when 0
 End:
