@@ -1,0 +1,76 @@
+#################################################
+# Part A - copy.ys
+# 
+# Author:		Cheng-Wei Lin
+# Student ID:	716030220009
+#################################################
+/* $begin code-yso */
+/* $begin code-ysa */
+# Execution begins at address 0 
+	.pos 0 
+init:	
+	irmovl Stack, %esp  	# Set up stack pointer  
+	irmovl Stack, %ebp  	# Set up base pointer   
+	call Main		# Execute main program
+	halt			# Terminate program 
+
+# Input datas
+	.align 4
+# Sourse block
+src:
+	.long 0x00a
+	.long 0x0b0
+	.long 0xc00
+# Destination block
+dest:
+	.long 0x111
+	.long 0x222
+	.long 0x333
+
+Main:
+	pushl	%ebp 
+	rrmovl	%esp,%ebp
+	irmovl	$3,%eax			# argument 1: len = 3
+	pushl	%eax
+	irmovl	dest,%eax		# argument 2: dest
+	pushl	%eax
+	irmovl	src,%eax		# argument 3: src
+	pushl	%eax
+	call	copy_block		# copy_block(src, dest, 3)
+	rrmovl	%ebp,%esp
+	popl	%ebp
+	ret 
+
+/* $begin rsum-ys 0 */
+	# int copy_block(int *src, int *dest, int len)
+copy_block:
+	pushl	%ebp
+	rrmovl	%esp,%ebp
+	mrmovl	16(%ebp),%ebx	# ebx = len
+	mrmovl	12(%ebp),%edx	# edx = dest
+	mrmovl	8(%ebp),%ecx	# ecx = src
+	xorl	%eax,%eax		# eax = result = 0
+	andl	%ebx,%ebx		
+	je		End				# if (len == 0) jump to End
+Loop:
+	mrmovl	(%ecx),%esi		# esi = val = *src
+	irmovl	$4,%edi			# edi = 1
+	addl	%edi,%ecx		# src++
+	rmmovl	%esi,(%edx)		# *dest = *src
+	addl	%edi,%edx		# dest++
+	xorl	%esi,%eax		# result ^= val
+	irmovl	$-1,%edi		# edi = -1
+	addl	%edi,%ebx		# len--
+	jne		Loop
+End:
+	rrmovl	%ebp,%esp
+	popl	%ebp
+	ret
+
+/* $end rsum-ys 0 */
+
+# The stack starts here and grows to lower addresses
+	.pos 0x200		
+Stack:	 
+/* $end code-ysa */
+/* $end code-yso */
