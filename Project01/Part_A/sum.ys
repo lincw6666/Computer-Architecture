@@ -1,0 +1,78 @@
+#################################################
+# Part A - sum.ys
+# 
+# Author:		Cheng-Wei Lin
+# Student ID:	716030220009
+#################################################
+/* $begin code-yso */
+/* $begin code-ysa */
+# Execution begins at address 0 
+	.pos 0 
+init:	
+	irmovl Stack, %esp  	# Set up stack pointer  
+	irmovl Stack, %ebp  	# Set up base pointer   
+	call Main		# Execute main program
+	halt			# Terminate program 
+
+# Datas of 3 lists
+# 
+# List structure:
+#
+# struct ELE {
+# 	int val;
+# 	struct ELE *next;
+# }; 
+	.align 4 	
+ele1:
+	.long 0x00a
+	.long ele2
+ele2:
+	.long 0x0b0
+	.long ele3
+ele3:
+	.long 0xc00
+	.long 0
+sum:
+	.long 0
+
+Main:
+	pushl %ebp 
+	rrmovl %esp,%ebp
+	irmovl ele1,%eax	
+	pushl %eax		# Push ele1
+	call sum_list	# sum_list(ele1)
+	rrmovl %ebp,%esp
+	popl %ebp
+	ret 
+
+/* $begin sum-ys 0 */
+	# int sum_list(struct ELE *list_prt ls)
+sum_list:
+	pushl %ebp
+	rrmovl %esp,%ebp
+	mrmovl 8(%ebp),%ecx		# ecx = ls
+	xorl %eax,%eax			# val = 0
+	andl   %ecx,%ecx		# Set condition codes
+	je     End
+Loop:	
+	mrmovl (%ecx),%edx		# get ls->val
+	addl %edx,%eax          # add to val
+	irmovl $4,%ebx
+	addl %ebx,%ecx          # ls->next
+	mrmovl (%ecx),%esi
+	rrmovl %esi,%ecx		# ls point to next element
+	andl %ecx,%ecx			# ls == 0
+	jne    Loop             # Stop when 0
+End:
+	irmovl sum,%ecx			# ecx = sum
+	rmmovl %eax,(%ecx)		# sum = val
+	rrmovl %ebp,%esp
+	popl %ebp
+	ret
+/* $end sum-ys 0 */
+
+# The stack starts here and grows to lower addresses
+	.pos 0x100		
+Stack:	 
+/* $end code-ysa */
+/* $end code-yso */
