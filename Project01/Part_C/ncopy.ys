@@ -3,7 +3,7 @@
 # ncopy.ys - Copy a src block of len ints to dst.
 # Return the number of positive ints (>0) contained in src.
 #
-# PartB - Optimize the baseline code.
+# Part C - Optimize the baseline code.
 #
 # Author: Cheng-Wei Lin
 # Student ID: 716030220009
@@ -11,7 +11,58 @@
 # Describe how and why you modified the baseline code.
 #
 # Description:
-#	
+#	1. Loop unrolling.
+#
+#	   < How >
+#	   - I copy 8 blocks of datas in 1 loop.
+#	   
+#	   < Why >
+#	   - It uses lots of branch instructions in the loop, which is
+#	     a big waste of time.
+#	   - Reduce the numbers of increasing array address (src++ and
+#	     dst++).  By unrolling, we only need to update the address
+#	     once for 8 copies.
+#
+#	2. Avoid data hazard.
+#
+#	   < How >
+#	   - In the unrolling loop, we can load 2 blocks of datas each
+#	     time, following by  storing 2 blocks of  datas. This will
+#	     avoid data hazard.
+#	     EX:
+#                  This causes data hazard
+#	                         ||
+#	                        _||_
+#	                        \  /
+#	                         \/
+#	         mrmovl (%ebx), %esi           mrmovl (%ebx), %esi
+#	         rmmovl %esi, (%ecx)   ---->   mrmovl 4(%ebx), %edi
+#	                                       rmmovl %esi, (%ecx)
+#	                                       rmmovl %edi, 4(%ecx)
+#
+#	   - For the remaining datas  outside the  unrolling  loop, we
+#	     can't load 2 blocks of data at once because we don't know
+#	     whether this is the last data in the array. Thus, we need
+#	     to  increase the array address by one  for  each  copy. I
+#	     reorder the instructions between  load, store and increas
+#	     -ing address. This will avoid data hazard.
+#	     EX:
+#                  This causes data hazard
+#	                         ||
+#	                        _||_
+#	                        \  /
+#	                         \/
+#	         mrmovl (%ebx), %esi           mrmovl (%ebx), %esi
+#	         rmmovl %esi, (%ecx)   ---->   iaddl $4, %ebx
+#	         iaddl $4, %ebx                rmmovl %esi, (%ecx)
+#	         iaddl $4, %ecx                iaddl $4, %ecx
+#
+#	   < Why >
+#	   - We need to stop one cycle  when a load word follows by an
+#	     ALU operation and the source register matches the destina
+#	     -tion register.
+#	   - We have 1 register which is not used. This makes it possi
+#	     -ble to implement loading 2 block of data at once.
 #
 ##################################################################
 # Do not modify this portion

@@ -1,5 +1,37 @@
 #/* $begin pipe-all-hcl */
 ####################################################################
+# Part C - Optimize the baseline code.
+#
+# Author: Cheng-Wei Lin
+# Student ID: 716030220009
+#
+# Description:
+#
+#     Implement the  iaddl instruction. The  following chart shows
+#     what I modified.
+#
+#     |-------|-------------------------|
+#     | Stage | iaddl V, rB             |
+#     |-------|-------------------------|
+#     |  IF   | instr_valid <-- IIADDL  |
+#     |       | need_regids <-- IIADDL  |
+#     |       | need_valC   <-- IIADDL  |
+#     |-------|-------------------------|
+#     |  ID   | d_srcB:D_rB <-- IIADDL  |
+#     |       | d_dstE:D_rB <-- IIADDL  |
+#     |-------|-------------------------|
+#     |  EX   | aluA:E_valC <-- IIADDL  |
+#     |       | aluB:E_valB <-- IIADDL  |
+#     |       | set_cc      <-- IIADDL  |
+#     |-------|-------------------------|
+#     |  MEM  |                         |
+#     |-------|-------------------------|
+#     |  WB   |                         |
+#     |-------|-------------------------|
+#
+####################################################################
+
+####################################################################
 #    HCL Description of Control for Pipelined Y86 Processor        #
 #    Copyright (C) Randal E. Bryant, David R. O'Hallaron, 2010     #
 ####################################################################
