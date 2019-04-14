@@ -28,20 +28,131 @@ ncopy:	pushl %ebp		# Save old frame pointer
 ##################################################################
 # You can modify this portion
 	# Loop header
-	xorl	%eax,%eax		# count = 0;
-	andl	%edx,%edx		# len <= 0?
-	jle		Done			# if so, goto Done:
-Loop:
+	xorl	%eax, %eax		# count = 0;
+	iaddl	$-8, %edx		# len < 8?
+	jl		Left1			# if so, goto Done:
+Loop1:
+	mrmovl	(%ebx), %esi	# read val from src...
+	mrmovl	4(%ebx), %edi	# read val from src...
+	rmmovl	%esi, (%ecx)	# ...and store it to dst
+	rmmovl	%edi, 4(%ecx)	# ...and store it to dst
+	andl	%esi, %esi		# val <= 0?
+	jle		Loop2			# if so, goto Loop2
+	iaddl	$1, %eax		# count++
+Loop2:
+	andl	%edi, %edi		# val <= 0?
+	jle		Loop3			# if so, goto Loop3
+	iaddl	$1, %eax
+Loop3:
+	mrmovl	8(%ebx), %esi	# read val from src...
+	mrmovl	12(%ebx), %edi	# read val from src...
+	rmmovl	%esi, 8(%ecx)	# ...and store it to dst
+	rmmovl	%edi, 12(%ecx)	# ...and store it to dst
+	andl	%esi, %esi		# val <= 0?
+	jle		Loop4			# if so, goto Loop4
+	iaddl	$1, %eax		# count++
+Loop4:
+	andl	%edi, %edi		# val <= 0?
+	jle		Loop5			# if so, goto Loop5
+	iaddl	$1, %eax
+Loop5:
+	mrmovl	16(%ebx), %esi	# read val from src...
+	mrmovl	20(%ebx), %edi	# read val from src...
+	rmmovl	%esi, 16(%ecx)	# ...and store it to dst
+	rmmovl	%edi, 20(%ecx)	# ...and store it to dst
+	andl	%esi, %esi		# val <= 0?
+	jle		Loop6			# if so, goto Loop6
+	iaddl	$1, %eax		# count++
+Loop6:
+	andl	%edi, %edi		# val <= 0?
+	jle		Loop7			# if so, goto Loop7
+	iaddl	$1, %eax
+Loop7:
+	mrmovl	24(%ebx), %esi	# read val from src...
+	mrmovl	28(%ebx), %edi	# read val from src...
+	rmmovl	%esi, 24(%ecx)	# ...and store it to dst
+	rmmovl	%edi, 28(%ecx)	# ...and store it to dst
+	andl	%esi, %esi		# val <= 0?
+	jle		Loop8			# if so, goto Loop8
+	iaddl	$1, %eax		# count++
+Loop8:
+	andl	%edi, %edi		# val <= 0?
+	jle		Update			# if so, goto Update
+	iaddl	$1, %eax
+Update:
+	iaddl	$32, %ebx		# src += 8
+	iaddl	$32, %ecx		# dst += 8
+	iaddl	$-8, %edx		# len < 8?
+	jge		Loop1			# if so, goto Loop1
+Left1:
+	iaddl	$8, %edx		# len +8 back for which -8 at Update
+	jle		Done			# if len <= 0, done
 	mrmovl	(%ebx), %esi	# read val from src...
 	iaddl	$4, %ebx		# src++
 	rmmovl	%esi, (%ecx)	# ...and store it to dst
 	iaddl	$4, %ecx		# dst++
 	andl	%esi, %esi		# val <= 0?
-	jle		Npos			# if so, goto Npos:
+	jle		Left2			# if so, goto Left2
 	iaddl	$1, %eax		# count++
-Npos:
-	iaddl	$-1, %edx		# --len > 0?
-	jne		Loop			# if so, goto Loop:
+Left2:
+	iaddl	$-1, %edx		# len <= 0?
+	jle		Done			# if so, done
+	mrmovl	(%ebx), %esi	# read val from src...
+	iaddl	$4, %ebx		# src++
+	rmmovl	%esi, (%ecx)	# ...and store it to dst
+	iaddl	$4, %ecx		# dst++
+	andl	%esi, %esi		# val <= 0?
+	jle		Left3			# if so, goto Left3
+	iaddl	$1, %eax		# count++
+Left3:
+    iaddl	$-1, %edx		# len <= 0?
+	jle		Done			# if so, done
+	mrmovl	(%ebx), %esi	# read val from src...
+	iaddl	$4, %ebx		# src++
+	rmmovl	%esi, (%ecx)	# ...and store it to dst
+	iaddl	$4, %ecx		# dst++
+	andl	%esi, %esi		# val <= 0?
+	jle		Left4			# if so, goto Left4
+	iaddl	$1, %eax		# count++
+Left4:
+	iaddl	$-1, %edx		# len <= 0?
+	jle		Done			# if so, done
+	mrmovl	(%ebx), %esi	# read val from src...
+	iaddl	$4, %ebx		# src++
+	rmmovl	%esi, (%ecx)	# ...and store it to dst
+	iaddl	$4, %ecx		# dst++
+	andl	%esi, %esi		# val <= 0?
+	jle		Left5			# if so, goto Left5
+	iaddl	$1, %eax		# count++
+Left5:
+	iaddl	$-1, %edx		# len <= 0?
+	jle		Done			# if so, done
+	mrmovl	(%ebx), %esi	# read val from src...
+	iaddl	$4, %ebx		# src++
+	rmmovl	%esi, (%ecx)	# ...and store it to dst
+	iaddl	$4, %ecx		# dst++
+	andl	%esi, %esi		# val <= 0?
+	jle		Left6			# if so, goto Left6
+	iaddl	$1, %eax		# count++
+Left6:
+	iaddl	$-1, %edx		# len <= 0?
+	jle		Done			# if so, done
+	mrmovl	(%ebx), %esi	# read val from src...
+	iaddl	$4, %ebx		# src++
+	rmmovl	%esi, (%ecx)	# ...and store it to dst
+	iaddl	$4, %ecx		# dst++
+	andl	%esi, %esi		# val <= 0?
+	jle		Left7			# if so, goto Left7
+	iaddl	$1, %eax		# count++
+Left7:
+	iaddl	$-1, %edx		# len <= 0?
+	jle		Done			# if so, done
+	mrmovl	(%ebx), %esi	# read val from src...
+	rmmovl	%esi, (%ecx)	# ...and store it to dst
+	andl	%esi, %esi		# val <= 0?
+	jle		Done			# if so, goto Done
+	iaddl	$1, %eax		# count++
+
 ##################################################################
 # Do not modify the following section of code
 # Function epilogue.
