@@ -2,3 +2,9 @@
 *.pdf
 *.vdi
 *.pptx
+*.doc
+*.docx
+
+# Ignore files and directories for project 01.
+Project01/716030220009/
+Project01/project1-handout/
