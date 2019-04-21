@@ -81,7 +81,10 @@ ncopy:	pushl %ebp		# Save old frame pointer
 	# Loop header
 	xorl	%eax, %eax		# count = 0;
 	iaddl	$-8, %edx		# len < 8?
-	jl		Left1			# if so, goto Done:
+	jl		From_8_to_4		# if so, goto From_8_to_4
+
+# If left elements are more than 8, keep copying 8 elements each
+# loop.
 Loop1:
 	mrmovl	(%ebx), %esi	# read val from src...
 	mrmovl	4(%ebx), %edi	# read val from src...
@@ -135,74 +138,88 @@ Update:
 	iaddl	$32, %ecx		# dst += 8
 	iaddl	$-8, %edx		# len < 8?
 	jge		Loop1			# if so, goto Loop1
-Left1:
-	iaddl	$8, %edx		# len +8 back for which -8 at Update
-	jle		Done			# if len <= 0, done
+From_8_to_4:
+	iaddl	$4, %edx		# len +4 back for which -4 at Update
+	jl		From_4_to_2		# if len < 0, goto From_4_to_2
+
+# Copy 4 elements.
+Loop4_1:
 	mrmovl	(%ebx), %esi	# read val from src...
-	iaddl	$4, %ebx		# src++
+	mrmovl	4(%ebx), %edi	# read val from src...
 	rmmovl	%esi, (%ecx)	# ...and store it to dst
-	iaddl	$4, %ecx		# dst++
+	rmmovl	%edi, 4(%ecx)	# ...and store it to dst
 	andl	%esi, %esi		# val <= 0?
-	jle		Left2			# if so, goto Left2
+	jle		Loop4_2			# if so, goto Loop4_1
 	iaddl	$1, %eax		# count++
+Loop4_2:
+	andl	%edi, %edi		# val <= 0?
+	jle		Loop4_3			# if so, goto Loop4_3
+	iaddl	$1, %eax
+Loop4_3:
+	mrmovl	8(%ebx), %esi	# read val from src...
+	mrmovl	12(%ebx), %edi	# read val from src...
+	rmmovl	%esi, 8(%ecx)	# ...and store it to dst
+	rmmovl	%edi, 12(%ecx)	# ...and store it to dst
+	andl	%esi, %esi		# val <= 0?
+	jle		Loop4_4			# if so, goto Loop4_4
+	iaddl	$1, %eax		# count++
+Loop4_4:
+	andl	%edi, %edi		# val <= 0?
+	jle		Update4			# if so, Update4
+	iaddl	$1, %eax
+Update4:
+	iaddl	$16, %ebx		# src += 4
+	iaddl	$16, %ecx		# dst += 8
+	iaddl	$-4, %edx
+From_4_to_2:
+	iaddl	$4, %edx		# len == 0?
+	je		Done			# if so, goto Done
+	mrmovl	(%ebx), %esi	# read val from src...
+	iaddl	$-1, %edx		# len == 1?
+	je		Left1			# if so, goto Left1
+	iaddl	$-1, %edx		# len == 2?
+	je		Left2			# if so, goto Left2
+
+# Left 3 elements to copy.
+	mrmovl	4(%ebx), %edi	# read val from src...
+	rmmovl	%esi, (%ecx)	# ...and store it to dst
+	rmmovl	%edi, 4(%ecx)	# ...and store it to dst
+	andl	%esi, %esi		# val <= 0?
+	jle		Left3_1			# if so, goto Left3_1
+	iaddl	$1, %eax		# count++
+Left3_1:
+	mrmovl	8(%ebx), %esi	# read val from src...
+	andl	%edi, %edi		# val <= 0?
+	jle		Left3_2			# if so, goto Left3_2
+	iaddl	$1, %eax		# count++
+Left3_2:
+	rmmovl	%esi, 8(%ecx)	# ...and store it to dst
+	andl	%esi, %esi		# val <= 0?
+	jle		Done			# if so, goto Done
+	iaddl	$1, %eax		# count++
+	jmp		Done
+
+# Left 2 elements to copy.
 Left2:
-	iaddl	$-1, %edx		# len <= 0?
-	jle		Done			# if so, done
-	mrmovl	(%ebx), %esi	# read val from src...
-	iaddl	$4, %ebx		# src++
+	mrmovl	4(%ebx), %edi	# read val from src...
 	rmmovl	%esi, (%ecx)	# ...and store it to dst
-	iaddl	$4, %ecx		# dst++
+	rmmovl	%edi, 4(%ecx)	# ...and store it to dst
 	andl	%esi, %esi		# val <= 0?
-	jle		Left3			# if so, goto Left3
+	jle		Left2_1			# if so, goto Left2_1
 	iaddl	$1, %eax		# count++
-Left3:
-    iaddl	$-1, %edx		# len <= 0?
-	jle		Done			# if so, done
-	mrmovl	(%ebx), %esi	# read val from src...
-	iaddl	$4, %ebx		# src++
-	rmmovl	%esi, (%ecx)	# ...and store it to dst
-	iaddl	$4, %ecx		# dst++
-	andl	%esi, %esi		# val <= 0?
-	jle		Left4			# if so, goto Left4
+Left2_1:
+	andl	%edi, %edi		# val <= 0?
+	jle		Done			# if so, goto Done
 	iaddl	$1, %eax		# count++
-Left4:
-	iaddl	$-1, %edx		# len <= 0?
-	jle		Done			# if so, done
-	mrmovl	(%ebx), %esi	# read val from src...
-	iaddl	$4, %ebx		# src++
-	rmmovl	%esi, (%ecx)	# ...and store it to dst
-	iaddl	$4, %ecx		# dst++
-	andl	%esi, %esi		# val <= 0?
-	jle		Left5			# if so, goto Left5
-	iaddl	$1, %eax		# count++
-Left5:
-	iaddl	$-1, %edx		# len <= 0?
-	jle		Done			# if so, done
-	mrmovl	(%ebx), %esi	# read val from src...
-	iaddl	$4, %ebx		# src++
-	rmmovl	%esi, (%ecx)	# ...and store it to dst
-	iaddl	$4, %ecx		# dst++
-	andl	%esi, %esi		# val <= 0?
-	jle		Left6			# if so, goto Left6
-	iaddl	$1, %eax		# count++
-Left6:
-	iaddl	$-1, %edx		# len <= 0?
-	jle		Done			# if so, done
-	mrmovl	(%ebx), %esi	# read val from src...
-	iaddl	$4, %ebx		# src++
-	rmmovl	%esi, (%ecx)	# ...and store it to dst
-	iaddl	$4, %ecx		# dst++
-	andl	%esi, %esi		# val <= 0?
-	jle		Left7			# if so, goto Left7
-	iaddl	$1, %eax		# count++
-Left7:
-	iaddl	$-1, %edx		# len <= 0?
-	jle		Done			# if so, done
-	mrmovl	(%ebx), %esi	# read val from src...
+	jmp		Done
+
+# Left 1 element to copy.
+Left1:
 	rmmovl	%esi, (%ecx)	# ...and store it to dst
 	andl	%esi, %esi		# val <= 0?
 	jle		Done			# if so, goto Done
 	iaddl	$1, %eax		# count++
+
 
 ##################################################################
 # Do not modify the following section of code
