@@ -15,6 +15,28 @@
 #
 #	   < How >
 #	   - I copy 8 blocks of datas in 1 loop.
+#	   - For the 7 remaining datas, if there are more than 3 datas
+#	     , copy 4 datas in a sequence.  Now  it  lefts less than 4
+#	     datas. Just check them one by one, which needs 3 branches.
+#	     The logic is shown below:
+#
+#	         if remaining datas > 3
+#	             copy 4 datas
+#	         if remaining datas == 0
+#	             goto Done
+#	         if remaining datas == 1
+#	             goto Left 1
+#	         if remaining datas == 2
+#	             goto Left2
+#
+#	         Left3:
+#	             ...
+#	         Left2:
+#	             ...
+#	         Left1:
+#	             ...
+#	         Done:
+#	         
 #	   
 #	   < Why >
 #	   - It uses lots of branch instructions in the loop, which is
