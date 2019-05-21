@@ -35,8 +35,8 @@ static char *FILE_NAME;
 
 struct cache_entry_struct {
 	uint64_t cache_entry;
-	struct cache_entry_t *prev;
-	struct cache_entry_t *next;
+	struct cache_entry_struct *prev;
+	struct cache_entry_struct *next;
 };
 #define cache_entry_t struct cache_entry_struct
 
@@ -68,11 +68,13 @@ int main(int argc, char** argv)
 	for (int i = 0; i < ENTRY_NUM; i++) {
 		cache[i] = (cache_entry_t *)malloc(sizeof(cache_entry_t) * WAY_NUM);
 		// Initialize cache entries.
-		for (int j = 0; j < WAY_NUM; j++) {
-			cache[i]->prev = NULL;
-			cache[i]->next = NULL;
+		cache[i][0].prev = cache[i];
+		cache[i][0].next = cache[i];
+		for (int j = 1; j < WAY_NUM; j++) {
+			cache[i][j].prev = NULL;
+			cache[i][j].next = NULL;
 		}
-		lru_head[i] = NULL;
+		lru_head[i] = cache[i];
 	}
 
 	/* Free cache memory. */
