@@ -1,10 +1,12 @@
 #include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <getopt.h>
 #include <unistd.h>
 #include "cachelab.h"
 
+# define MAX_BUF_LEN (1024)
 # define ADDR_BITS (64UL)
 # define __GET_VAL(addr, offset, mask) ((addr >> offset) & mask)
 
@@ -45,10 +47,57 @@ static inline void invalid_input() {
 	exit(1);
 }
 
+static inline void failed_open_file() {
+	fprintf(stderr, "Can't open file %s!!\n", FILE_NAME);
+	exit(1);
+}
+
+static inline void file_bad_action(const char ch) {
+	fprintf(stderr, "Bad action '%c'!!\n", ch);
+	exit(1);
+}
+
+static void skip_spaces(const char *buf, int *now) {
+	while (*now < MAX_BUF_LEN && buf[*now] == ' ')
+		(*now)++;
+	if (*now >= MAX_BUF_LEN) {
+		fprintf(stderr, "Bad content!!\n");
+		exit(1);
+	}
+}
+
+static inline bool is_valid_hex(const char hex) {
+	return ('0' <= hex && hex <= '9') \
+		|| ('a' <= hex && hex <= 'f') \
+		|| ('A' <= hex && hex <= 'F');
+}
+
+static uint64_t hex2uint64(const char hex) {
+	if ('0' <= hex && hex <= '9')
+		return (uint64_t)hex - '0';
+	else if ('a' <= hex && hex <= 'f')
+		return (uint64_t)hex - 'a' + 10;
+	else if ('A' <= hex && hex <= 'F')
+		return (uint64_t)hex - 'A' + 10;
+	return 0;
+}
+
+static uint64_t get_address(const char *buf, int now) {
+	uint64_t ret = 0;
+
+	while (now < MAX_BUF_LEN && is_valid_hex(buf[now])) {
+		ret = (ret << 4) + hex2uint64(buf[now]);
+		now++;
+	}
+
+	return ret;
+}
+
 int main(int argc, char** argv)
 {
 	cache_entry_t **cache, **lru_head;
-	char ch;
+	FILE *fp;
+	char ch, buf[MAX_BUF_LEN];
 
 	/* Get inputs. */
 	if (argc != 9) invalid_input();
@@ -77,6 +126,41 @@ int main(int argc, char** argv)
 		lru_head[i] = cache[i];
 	}
 
+	/* Parse the input file. */
+	if (!(fp = fopen(FILE_NAME, "r"))) failed_open_file();
+	while (fgets(buf, MAX_BUF_LEN, fp)) {
+		int now_id_in_buf = 0;
+		char now_action;		// 'S', 'L' or 'M'
+		uint64_t address;
+
+		// Skip 'I' instructions, which start with a space in the line.
+		if (buf[0] != ' ') continue;
+
+		// Get action: 'S', 'L' or 'M'.
+		skip_spaces(buf, &now_id_in_buf);
+		now_action = buf[now_id_in_buf++];
+		// Get address.
+		skip_spaces(buf, &now_id_in_buf);
+		address = get_address(buf, now_id_in_buf);
+		switch (now_action) {
+			// Store and Load do the same action.
+			case 'S':
+			case 'L':
+				break;
+			// Modify
+			case 'M':
+				break;
+			// Something wrong in the input file.
+			default:
+				file_bad_action(now_action);
+		}
+	}
+    
+	printSummary(0, 0, 0);
+
+	/* Close the opened file. */
+	fclose(fp);
+
 	/* Free cache memory. */
 	for (int i = 0; i < ENTRY_NUM; i++) {
 		free(cache[i]);
@@ -84,6 +168,5 @@ int main(int argc, char** argv)
 	free(cache);
 	free(lru_head);
 
-    printSummary(0, 0, 0);
     return 0;
 }
