@@ -42,6 +42,7 @@ struct cache_entry_struct {
 };
 #define cache_entry_t struct cache_entry_struct
 
+/* Exit when error occurs. */
 static inline void invalid_input() {
 	fprintf(stderr, "Invalid input!!\n");
 	exit(1);
@@ -57,6 +58,7 @@ static inline void file_bad_action(const char ch) {
 	exit(1);
 }
 
+/* Functions relate to parsing input file. */
 static void skip_spaces(const char *buf, int *now) {
 	while (*now < MAX_BUF_LEN && buf[*now] == ' ')
 		(*now)++;
@@ -93,9 +95,12 @@ static uint64_t get_address(const char *buf, int now) {
 	return ret;
 }
 
+/* Cache mechanism */
+//static bool is_cache_hit(const cache_entry_t ** const cache, const uint64_t address);
+
 int main(int argc, char** argv)
 {
-	cache_entry_t **cache, **lru_head;
+	cache_entry_t **cache, *lru_head;
 	FILE *fp;
 	char ch, buf[MAX_BUF_LEN];
 
@@ -113,17 +118,16 @@ int main(int argc, char** argv)
 
 	/* Allocate cache memory. */
 	cache = (cache_entry_t **)malloc(sizeof(cache_entry_t) * ENTRY_NUM);
-	lru_head = (cache_entry_t **)malloc(sizeof(cache_entry_t) * ENTRY_NUM);
+	lru_head = (cache_entry_t *)malloc(sizeof(cache_entry_t) * ENTRY_NUM);
 	for (int i = 0; i < ENTRY_NUM; i++) {
 		cache[i] = (cache_entry_t *)malloc(sizeof(cache_entry_t) * WAY_NUM);
 		// Initialize cache entries.
-		cache[i][0].prev = cache[i];
-		cache[i][0].next = cache[i];
-		for (int j = 1; j < WAY_NUM; j++) {
+		for (int j = 0; j < WAY_NUM; j++) {
 			cache[i][j].prev = NULL;
 			cache[i][j].next = NULL;
 		}
-		lru_head[i] = cache[i];
+		lru_head[i].prev = cache[i];	// The most recently used cache entry.
+		lru_head[i].next = cache[i];	// The least recently used cache entry.
 	}
 
 	/* Parse the input file. */
@@ -154,6 +158,7 @@ int main(int argc, char** argv)
 			default:
 				file_bad_action(now_action);
 		}
+		printf("%c, %lu\n", now_action, address);
 	}
     
 	printSummary(0, 0, 0);
