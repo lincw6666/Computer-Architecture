@@ -32,23 +32,34 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
 	int block_i, block_j, sub_block_i, sub_block_j, row, col, diagonal_pos;
 
-	/* N X 32 matrix. */
+	/* For 32 X 32 matrix only. */
 	if (N == 32 && M == 32) {
 		/*
 		 * Divide the 32 X 32 matrix into several 8 X 8 blocks.
-		 * For N which is not the multiple of 8, divide the matrix from
-		 * row 0 to N-(N%8)-2 into several 8 X 8 blocks. Then, divide
-		 * the remaining part into some (N%8) X 8 blocks.
+		 * 
+		 * Beware of the order I go through these blocks. For matrix A, I go through
+		 * the blocks from top to bottom then from left to right. For matrix B, I go
+		 * through the blocks from left to right then from top to bottom.
+		 * 
+		 * Why I do so?
+		 * 
+		 * First, I'll talk about what is the neighbor block. The neighbor block is a
+		 * block right next to the block it belongs to (on the same row). We know that
+		 * the blocks on the diagonal in A and B occupy the same cache entry. If we
+		 * do the matrix transpose in place, it'll cause extra cache misses. Thus, I
+		 * store the transposition matrix of A's block into the neighbor block in B.
+		 * Then, copy the data from the neighbor block to the correct place.
+		 * 
+		 * You might think that how about the cache entries the neighbor block used.
+		 * We don't want to let it be rewritten by other blocks. Therefore, we need
+		 * to deal with the block on the next row in A right now. The destination of
+		 * the transposition matrix is the neighbor block. We'll get hit when we access
+		 * them. This is why I use the neighbor block and why I go through the blocks
+		 * in this way.
 		 */
 		for (block_j = 0; block_j < M; block_j += 8) {
 			for (block_i = 0; block_i < N; block_i += 8) {
-				/* 
-				 * Do the matrix transpose for each block.
-				 * Beware of the termination condition of 'row'. If N
-				 * is not the multiple of 8, row + 8 will exceed the 
-				 * boundary, which causes segmentation fault. Thus, we
-				 * add an extra condition 'row < N' to avoid it.
-				 */
+				/* Do the matrix transpose for each block. */
 				for (row = block_i; row < block_i+8; row++) {
 					for (col = block_j; col < block_j+8; col++) {
 						/*
@@ -61,7 +72,8 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 						 * B. Then, store the data back to the correct block in B.
 						 *
 						 * Condition 'block_i+15 < N' is used for checking that
-						 * does the block in B has a neighbor block.
+						 * does the block in B has enough space to allocate a
+						 * neighbor block.
 						 */
 						if ((block_i == block_j) && (block_i+15 < N)) {
 							B[col][row+8] = A[row][col];
@@ -85,7 +97,10 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 					if ((block_i == block_j) && (block_i+15 >= N))
 						B[diagonal_pos][diagonal_pos] = A[diagonal_pos][diagonal_pos];
 				}
-				/* Deal with the diagonal block with neighbor block. */
+				/*
+				 * Deal with the diagonal block with neighbor block.
+				 * Copy the data in the neighbor block to itself.
+				 */
 				if ((block_i == block_j) && (block_i+15 < N)) {
 					for (row = block_i; (row < block_i+8); row++) {
 						for (col = block_j; col < block_j+8; col++) {
@@ -96,18 +111,18 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 			}
 		}
 	}
-	/* 64 X 64 matrix. */
+	/* For 64 X 64 matrix only. */
 	else if (N == 64 && M == 64) {
 		/* Divide the matrix into several 8 X 8 big blocks. */
 		for (block_j = 0; block_j < M; block_j += 8) {
 			for (block_i = 0; block_i < N; block_i += 8) {
-				/* If the block has a neighbor block. */
+				/* Check whether the block has a neighbor block. */
 				if (block_i+15 < N) {
 					for (row = block_i; row < block_i+4; row++) {
 						for (col = block_j; col < block_j+8; col++) {
 							/*
-							 * Transpose the upper left of A's block to the upper left of B's 
-							 * block.
+							 * Transpose the upper left 4 X 4 of A's block to the 
+							 * upper left 4 X 4 of B's block.
 							 */
 							if (col-block_j < 4) {
 								if (row == col) {
@@ -118,10 +133,16 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 								}
 							}
 							/*
-							 * Transpose the upper right of A's block to the upper left of B's
-							 * neighbor block.
+							 * Transpose the upper right 4 X 4 of A's block to the
+							 * upper left 4 X 4 of B's neighbor block.
 							 */
 							else {
+								/*
+								 * When block_i == block_j-8, the block in A and B's
+								 * neighbor block occupy the same cache entry. Just
+								 * do the same thing on the diagonal blocks to these
+								 * blocks.
+								 */
 								if (row == col-12) {
 									diagonal_pos = row;
 								}
@@ -138,8 +159,8 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 					for (row = block_i+4; row < block_i+8; row++) {
 						for (col = block_j; col < block_j+8; col++) {
 							/*
-							 * Transpose the bottom left of A's block to the bottom left of B's
-							 * block.
+							 * Transpose the bottom left 4 X 4 of A's block to the
+							 * bottom left 4 X 4 of B's block.
 							 */
 							if (col-block_j < 4) {
 								if (row-4 == col) {
@@ -150,10 +171,11 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 								}
 							}
 							/*
-							 * Transpose the bottom right of A's block to the upper right of B's
-							 * neighbor block.
+							 * Transpose the bottom right 4 X 4 of A's block to the
+							 * upper right 4 X 4 of B's neighbor block.
 							 */
 							else {
+								/* Same logic as above. */
 								if (row == col-8) {
 									diagonal_pos = row;
 								}
@@ -203,6 +225,11 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 	}
 	/* Other matrix size. */
 	else {
+		/*
+		 * Similar to dealing with 32 X 32 matrix without the neighbor block.
+		 * The block size is 16 X 16. There is no mathematical reason. I set it
+		 * just according to the result of dealing with 61 X 67 matrix.
+		 */
 		for (block_j = 0; block_j < M; block_j += 16) {
 			for (block_i = 0; block_i < N; block_i += 16) {
 				for (row = block_i; (row < block_i+16) && (row < N); row++) {
