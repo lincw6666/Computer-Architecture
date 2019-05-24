@@ -203,11 +203,12 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 	}
 	/* Other matrix size. */
 	else {
-		for (block_i = 0; block_i < N; block_i += 8) {
-			for (block_j = 0; block_j < M; block_j += 8) {
-				for (row = block_i; (row < block_i+8) && (row < N); row++) {
-					for (col = block_j; (col < block_j+8) && (col < M); col++) {
+		for (block_j = 0; block_j < M; block_j += 16) {
+			for (block_i = 0; block_i < N; block_i += 16) {
+				for (row = block_i; (row < block_i+16) && (row < N); row++) {
+					for (col = block_j; (col < block_j+16) && (col < M); col++) {
 						if (row == col) {
+							sub_block_i = A[row][col];
 							diagonal_pos = row;
 						}
 						else {
@@ -215,7 +216,7 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 						}
 					}
 					if (block_i == block_j)
-						B[diagonal_pos][diagonal_pos] = A[diagonal_pos][diagonal_pos];
+						B[diagonal_pos][diagonal_pos] = sub_block_i;
 				}
 			}
 		}
