@@ -42,12 +42,11 @@ static uint64_t WAY_NUM;
 /* File name. */
 static char *FILE_NAME;
 
-struct cache_entry_struct {
+typedef struct cache_entry_struct {
 	uint64_t cache_entry;
 	struct cache_entry_struct *prev;
 	struct cache_entry_struct *next;
-};
-#define cache_entry_t struct cache_entry_struct
+} cache_entry_t;
 
 /* Exit when error occurs. */
 static inline void invalid_input() {
@@ -65,43 +64,6 @@ static inline void file_bad_action(const char ch) {
 	exit(1);
 }
 
-/* Functions relate to parsing input file. */
-static void skip_spaces(const char *buf, int *now) {
-	while (*now < MAX_BUF_LEN && buf[*now] == ' ')
-		(*now)++;
-	if (*now >= MAX_BUF_LEN) {
-		fprintf(stderr, "Bad content!!\n");
-		exit(1);
-	}
-}
-
-static inline bool is_valid_hex(const char hex) {
-	return ('0' <= hex && hex <= '9') \
-		|| ('a' <= hex && hex <= 'f') \
-		|| ('A' <= hex && hex <= 'F');
-}
-
-static uint64_t hex2uint64(const char hex) {
-	if ('0' <= hex && hex <= '9')
-		return (uint64_t)hex - '0';
-	else if ('a' <= hex && hex <= 'f')
-		return (uint64_t)hex - 'a' + 10;
-	else if ('A' <= hex && hex <= 'F')
-		return (uint64_t)hex - 'A' + 10;
-	return 0;
-}
-
-static uint64_t get_address(const char *buf, int *now) {
-	uint64_t ret = 0;
-
-	while (*now < MAX_BUF_LEN && is_valid_hex(buf[*now])) {
-		ret = (ret << 4) + hex2uint64(buf[*now]);
-		(*now)++;
-	}
-
-	return ret;
-}
-
 int eviction_num = 0;
 
 /* Cache mechanism */
@@ -112,8 +74,9 @@ int main(int argc, char** argv)
 {
 	cache_entry_t **cache, *lru_head;
 	FILE *fp;
-	char ch, buf[MAX_BUF_LEN];
-	int hit_num = 0, miss_num = 0;
+	char ch, now_action;
+	int hit_num = 0, miss_num = 0, size;
+	uint64_t address;
 
 	/* Get inputs. */
 	if (argc != 9) invalid_input();
@@ -144,21 +107,11 @@ int main(int argc, char** argv)
 
 	/* Parse the input file. */
 	if (!(fp = fopen(FILE_NAME, "r"))) failed_open_file();
-	while (fgets(buf, MAX_BUF_LEN, fp)) {
-		int now_id_in_buf = 0;
-		char now_action;		// 'S', 'L' or 'M'
-		uint64_t address;
-
-		// Skip 'I' instructions, which start with a space in the line.
-		if (buf[0] != ' ') continue;
-
-		// Get action: 'S', 'L' or 'M'.
-		skip_spaces(buf, &now_id_in_buf);
-		now_action = buf[now_id_in_buf++];
-		// Get address.
-		skip_spaces(buf, &now_id_in_buf);
-		address = get_address(buf, &now_id_in_buf);
+	while (fscanf(fp, " %c %lx,%d", &now_action, &address, &size) == 3) {
 		switch (now_action) {
+			// Ignore instruction fetch operation.
+			case 'I':
+				break;
 			// Modify
 			case 'M':
 				hit_num++;
