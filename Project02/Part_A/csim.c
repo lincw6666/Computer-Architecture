@@ -48,6 +48,11 @@ typedef struct cache_entry_struct {
 	struct cache_entry_struct *next;
 } cache_entry_t;
 
+typedef struct lru_head_struct {
+	cache_entry_t *prev;
+	cache_entry_t *next;
+} lru_head_t;
+
 /* Exit when error occurs. */
 static inline void invalid_input() {
 	fprintf(stderr, "Invalid input!!\n");
@@ -67,12 +72,13 @@ static inline void file_bad_action(const char ch) {
 int eviction_num = 0;
 
 /* Cache mechanism */
-static bool is_cache_hit(cache_entry_t **cache, cache_entry_t *lru_head, const uint64_t address);
-static void write_miss_data_to_LRU(cache_entry_t *lru_head, const uint64_t address);
+static bool is_cache_hit(cache_entry_t **cache, lru_head_t *lru_head, const uint64_t address);
+static void write_miss_data_to_LRU(lru_head_t *lru_head, const uint64_t address);
 
 int main(int argc, char** argv)
 {
-	cache_entry_t **cache, *lru_head;
+	cache_entry_t **cache;
+	lru_head_t *lru_head;
 	FILE *fp;
 	char ch, now_action;
 	int hit_num = 0, miss_num = 0, size;
@@ -92,7 +98,7 @@ int main(int argc, char** argv)
 
 	/* Allocate cache memory. */
 	cache = (cache_entry_t **)malloc(sizeof(cache_entry_t) * ENTRY_NUM);
-	lru_head = (cache_entry_t *)malloc(sizeof(cache_entry_t) * ENTRY_NUM);
+	lru_head = (lru_head_t *)malloc(sizeof(lru_head_t) * ENTRY_NUM);
 	for (int i = 0; i < ENTRY_NUM; i++) {
 		cache[i] = (cache_entry_t *)malloc(sizeof(cache_entry_t) * WAY_NUM);
 		// Initialize cache entries.
@@ -147,40 +153,44 @@ int main(int argc, char** argv)
     return 0;
 }
 
-static void remove_from_list(cache_entry_t *element) {
+static void remove_from_list(lru_head_t *list_head, cache_entry_t *element) {
+	if (list_head->prev == element) list_head->prev = element->prev;
+	else if (list_head->next == element) list_head->next = element->next;
 	element->prev->next = element->next;
 	element->next->prev = element->prev;
 	element->prev = NULL;
 	element->next = NULL;
 }
 
-static void insert_to_list_head(cache_entry_t *list_head, cache_entry_t *element) {
+static void insert_to_list_head(lru_head_t *list_head, cache_entry_t *element) {
 	list_head->next->prev = element;
 	element->next = list_head->next;
 	list_head->next = element;
-	element->prev = list_head;
+	list_head->prev->next = element;
+	element->prev = list_head->prev;
 }
 
-static void insert_to_list_tail(cache_entry_t *list_head, cache_entry_t *element) {
+static void insert_to_list_tail(lru_head_t *list_head, cache_entry_t *element) {
 	list_head->prev->next = element;
 	element->prev = list_head->prev;
 	list_head->prev = element;
-	element->next = list_head;
+	list_head->next->prev = element;
+	element->next = list_head->next;
 }
 
 /* When the valid bit is 0, let it be the LRU cache entry. It'll store the miss data in 'write_miss_data_to_LRU'. */
-static void update_LRU(cache_entry_t *lru_head, cache_entry_t *lru) {
-	if (lru->prev != NULL && lru->next != NULL) remove_from_list(lru);
+static void update_LRU(lru_head_t *lru_head, cache_entry_t *lru) {
+	if (lru->prev != NULL && lru->next != NULL) remove_from_list(lru_head, lru);
 	insert_to_list_head(lru_head, lru);
 }
 
 /* When the cache entry is hit, we need to update it to become the most recently used cache entry. */
-static void update_MRU(cache_entry_t *lru_head, cache_entry_t *mru) {
-	remove_from_list(mru);
+static void update_MRU(lru_head_t *lru_head, cache_entry_t *mru) {
+	remove_from_list(lru_head, mru);
 	insert_to_list_tail(lru_head, mru);
 }
 
-static bool is_cache_hit(cache_entry_t **cache, cache_entry_t *lru_head, const uint64_t address) {
+static bool is_cache_hit(cache_entry_t **cache, lru_head_t *lru_head, const uint64_t address) {
 	uint64_t now_index = GET_ADDR_INDEX(address);
 	uint64_t now_tag = GET_ADDR_TAG(address);
 	int i;
@@ -203,7 +213,7 @@ static bool is_cache_hit(cache_entry_t **cache, cache_entry_t *lru_head, const u
 	return false;
 }
 
-static void write_miss_data_to_LRU(cache_entry_t *lru_head, const uint64_t address) {
+static void write_miss_data_to_LRU(lru_head_t *lru_head, const uint64_t address) {
 	uint64_t now_index = GET_ADDR_INDEX(address);
 	uint64_t now_tag = GET_ADDR_TAG(address);
 
